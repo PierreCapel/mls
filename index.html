@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Major Soccer League (Sparking/Rush edition)</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .dbz-bg {
+            background: linear-gradient(135deg, #ff6b00 0%, #ff0000 100%);
+        }
+        .fc25-bg {
+            background: linear-gradient(135deg, #00ff87 0%, #00b359 100%);
+        }
+        .champion-card {
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+            box-shadow: 0 10px 40px rgba(255, 215, 0, 0.4);
+        }
+        .dauphin-card {
+            background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%);
+            box-shadow: 0 8px 30px rgba(192, 192, 192, 0.4);
+        }
+        .pdb-card {
+            background: linear-gradient(135deg, #8b4513 0%, #cd853f 100%);
+            box-shadow: 0 8px 30px rgba(139, 69, 19, 0.4);
+        }
+        .ventre-card {
+            background: linear-gradient(135deg, #4a5568 0%, #718096 100%);
+        }
+        .modal-overlay {
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 min-h-screen">
+    <div id="app">
+        <div class="container mx-auto px-4 py-8">
+            <!-- Header -->
+            <div class="text-center mb-12">
+                <h1 class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-red-500 to-pink-500 mb-2">
+                    🎮 MAJOR SOCCER LEAGUE 🏆
+                </h1>
+                <p class="text-gray-300 text-lg">Dragon Ball Z Sparking Zero × FC25 Rush</p>
+                <button 
+                    v-if="etape !== 'config'"
+                    @click.prevent="ouvrirModalReset"
+                    class="mt-4 px-4 py-2 bg-red-600 text-white font-semibold rounded-xl hover:bg-red-700 transition text-sm"
+                >
+                    🗑️ Réinitialiser toutes les données
+                </button>
+            </div>
+
+            <!-- Modale de confirmation reset -->
+            <teleport to="body">
+                <div v-if="modalResetVisible" class="fixed inset-0 z-50 flex items-center justify-center modal-overlay">
+                    <div class="absolute inset-0" @click.prevent="fermerModalReset"></div>
+                    <div class="bg-gray-800 rounded-3xl p-8 max-w-md mx-4 border-4 border-red-500 shadow-2xl relative z-10">
+                        <h3 class="text-2xl font-bold text-white mb-4 text-center">⚠️ Attention !</h3>
+                        <p class="text-gray-300 mb-6 text-center">
+                            Êtes-vous sûr de vouloir réinitialiser toutes les données du tournoi ? 
+                            Cette action est irréversible et supprimera tous les participants, matchs et résultats.
+                        </p>
+                        <div class="flex gap-4">
+                            <button 
+                                @click.prevent="fermerModalReset"
+                                class="flex-1 py-3 bg-gray-700 text-white font-bold rounded-xl hover:bg-gray-600 transition"
+                            >
+                                Annuler
+                            </button>
+                            <button 
+                                @click.prevent="confirmerReset"
+                                class="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition"
+                            >
+                                Confirmer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </teleport>
+
+            <!-- Configuration -->
+            <div v-if="etape === 'config'" class="max-w-4xl mx-auto">
+                <div class="bg-gray-800 rounded-3xl shadow-2xl p-8 border border-gray-700">
+                    <h2 class="text-3xl font-bold text-white mb-6 flex items-center gap-3">
+                        <span class="text-4xl">⚙️</span> Configuration du Tournoi
+                    </h2>
+                    
+                    <!-- Ajout de participants -->
+                    <div class="mb-8">
+                        <h3 class="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                            <span>👥</span> Participants ({{ participants.length }})
+                        </h3>
+                        <div class="flex gap-3 mb-4">
+                            <input 
+                                v-model="nomTemp" 
+                                @keyup.enter="ajouterParticipant"
+                                type="text" 
+                                placeholder="Nom du participant"
+                                class="flex-1 px-4 py-3 bg-gray-700 text-white rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none"
+                            >
+                            <button 
+                                @click="ajouterParticipant"
+                                class="px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white font-semibold rounded-xl hover:shadow-lg transform hover:scale-105 transition"
+                            >
+                                Ajouter
+                            </button>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <div 
+                                v-for="participant in participants" 
+                                :key="participant"
+                                class="flex items-center gap-2 bg-gray-700 px-4 py-2 rounded-full text-white"
+                            >
+                                <span>{{ participant }}</span>
+                                <button 
+                                    @click="retirerParticipant(participant)"
+                                    class="text-red-400 hover:text-red-300 font-bold"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Configuration des manches -->
+                    <div class="grid md:grid-cols-2 gap-6 mb-8">
+                        <div class="dbz-bg rounded-2xl p-6 text-white">
+                            <h3 class="text-2xl font-bold mb-4 flex items-center gap-2">
+                                <span>🐉</span> DBZ Sparking
+                            </h3>
+                            <label class="block mb-2 font-semibold">Confrontations aller/retour :</label>
+                            <input 
+                                v-model.number="matchsDBZ" 
+                                type="number" 
+                                min="1"
+                                class="w-full px-4 py-3 bg-white/20 backdrop-blur text-white rounded-xl border border-white/30 focus:outline-none focus:border-white"
+                            >
+                        </div>
+                        
+                        <div class="fc25-bg rounded-2xl p-6 text-white">
+                            <h3 class="text-2xl font-bold mb-4 flex items-center gap-2">
+                                <span>⚽</span> FC25 Rush
+                            </h3>
+                            <label class="block mb-2 font-semibold">Confrontations aller/retour :</label>
+                            <input 
+                                v-model.number="matchsFC25" 
+                                type="number" 
+                                min="1"
+                                class="w-full px-4 py-3 bg-white/20 backdrop-blur text-white rounded-xl border border-white/30 focus:outline-none focus:border-white"
+                            >
+                        </div>
+                    </div>
+
+                    <button 
+                        @click="demarrerTournoi"
+                        :disabled="participants.length < 2"
+                        class="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xl font-bold rounded-xl hover:shadow-2xl transform hover:scale-105 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        🚀 Démarrer le Tournoi
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tournoi en cours -->
+            <div v-if="etape === 'tournoi'" class="max-w-6xl mx-auto">
+                <!-- Onglets des manches -->
+                <div class="flex gap-4 mb-8">
+                    <button 
+                        @click="mancheActive = 'dbz'"
+                        :class="mancheActive === 'dbz' ? 'dbz-bg scale-105' : 'bg-gray-700'"
+                        class="flex-1 py-4 px-6 rounded-2xl text-white font-bold text-xl transition transform hover:scale-105 shadow-lg"
+                    >
+                        🐉 Dragon Ball Z ({{ matchsTermines('dbz') }}/{{ matchsJoues.dbz.length }})
+                    </button>
+                    <button 
+                        @click="mancheActive = 'fc25'"
+                        :class="mancheActive === 'fc25' ? 'fc25-bg scale-105' : 'bg-gray-700'"
+                        class="flex-1 py-4 px-6 rounded-2xl text-white font-bold text-xl transition transform hover:scale-105 shadow-lg"
+                    >
+                        ⚽ FC25 Rush ({{ matchsTermines('fc25') }}/{{ matchsJoues.fc25.length }})
+                    </button>
+                </div>
+
+                <!-- Settings en cours de tournoi -->
+                <div class="bg-gray-800 rounded-2xl p-6 mb-6 border border-gray-700">
+                    <h3 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                        <span>⚙️</span> Modifier les confrontations
+                    </h3>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-white mb-2">Confrontations DBZ :</label>
+                            <input 
+                                v-model.number="matchsDBZTemp" 
+                                type="number" 
+                                :min="matchsDBZ"
+                                class="w-full px-4 py-2 bg-gray-700 text-white rounded-xl border border-gray-600 focus:outline-none"
+                            >
+                        </div>
+                        <div>
+                            <label class="block text-white mb-2">Confrontations FC25 :</label>
+                            <input 
+                                v-model.number="matchsFC25Temp" 
+                                type="number" 
+                                :min="matchsFC25"
+                                class="w-full px-4 py-2 bg-gray-700 text-white rounded-xl border border-gray-600 focus:outline-none"
+                            >
+                        </div>
+                    </div>
+                    <button 
+                        @click="ajouterConfrontations"
+                        class="mt-4 px-6 py-2 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition"
+                    >
+                        Mettre à jour
+                    </button>
+                </div>
+
+                <!-- Liste des matchs -->
+                <div class="bg-gray-800 rounded-3xl p-8 border border-gray-700">
+                    <h3 class="text-2xl font-bold text-white mb-6">
+                        {{ mancheActive === 'dbz' ? '🐉 Matchs Dragon Ball Z' : '⚽ Matchs FC25 Rush' }}
+                    </h3>
+                    
+                    <div class="space-y-4">
+                        <!-- Matchs DBZ - Sélection du gagnant -->
+                        <div 
+                            v-if="mancheActive === 'dbz'"
+                            v-for="match in matchsJoues[mancheActive]" 
+                            :key="match.id"
+                            :class="match.termine ? 'bg-gray-700/50' : 'bg-gray-700'"
+                            class="rounded-2xl p-6 border border-gray-600"
+                        >
+                            <div class="flex items-center gap-4">
+                                <button
+                                    @click="selectionnerGagnantDBZ(match.id, match.joueur1)"
+                                    :disabled="match.termine"
+                                    :class="match.gagnant === match.joueur1 ? 'bg-green-600 ring-4 ring-green-400' : 'bg-gray-600 hover:bg-gray-500'"
+                                    class="flex-1 py-4 px-6 text-white font-semibold rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed text-lg"
+                                >
+                                    {{ match.joueur1 }}
+                                    <span v-if="match.gagnant === match.joueur1" class="ml-2">👑</span>
+                                </button>
+                                
+                                <div class="flex flex-col gap-2">
+                                    <span class="text-white font-bold text-xl text-center">VS</span>
+                                    <button
+                                        v-if="!match.termine"
+                                        @click="selectionnerGagnantDBZ(match.id, 'nul')"
+                                        :class="match.gagnant === 'nul' ? 'bg-yellow-600 ring-2 ring-yellow-400' : 'bg-gray-600 hover:bg-gray-500'"
+                                        class="px-3 py-1 text-white text-xs font-semibold rounded-lg transition"
+                                    >
+                                        Nul
+                                    </button>
+                                </div>
+                                
+                                <button
+                                    @click="selectionnerGagnantDBZ(match.id, match.joueur2)"
+                                    :disabled="match.termine"
+                                    :class="match.gagnant === match.joueur2 ? 'bg-green-600 ring-4 ring-green-400' : 'bg-gray-600 hover:bg-gray-500'"
+                                    class="flex-1 py-4 px-6 text-white font-semibold rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed text-lg"
+                                >
+                                    {{ match.joueur2 }}
+                                    <span v-if="match.gagnant === match.joueur2" class="ml-2">👑</span>
+                                </button>
+                                
+                                <button 
+                                    v-if="!match.termine && match.gagnant"
+                                    @click="validerMatchDBZ(match.id)"
+                                    class="px-6 py-2 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition"
+                                >
+                                    ✓
+                                </button>
+                                <button 
+                                    v-if="match.termine"
+                                    @click="modifierResultat(mancheActive, match.id)"
+                                    class="px-6 py-2 bg-yellow-600 text-white font-semibold rounded-xl hover:bg-yellow-700 transition"
+                                >
+                                    ✏️
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Matchs FC25 - Saisie des scores -->
+                        <div 
+                            v-if="mancheActive === 'fc25'"
+                            v-for="match in matchsJoues[mancheActive]" 
+                            :key="match.id"
+                            :class="match.termine ? 'bg-gray-700/50' : 'bg-gray-700'"
+                            class="rounded-2xl p-6 border border-gray-600"
+                        >
+                            <div class="flex items-center gap-4">
+                                <div class="flex-1 text-white font-semibold text-lg">
+                                    {{ match.joueur1 }}
+                                </div>
+                                <input 
+                                    v-model.number="match.score1"
+                                    type="number" 
+                                    min="0"
+                                    :disabled="match.termine"
+                                    class="w-20 px-3 py-2 bg-gray-600 text-white text-center rounded-xl border border-gray-500 focus:outline-none disabled:opacity-50"
+                                >
+                                <span class="text-white font-bold text-xl">-</span>
+                                <input 
+                                    v-model.number="match.score2"
+                                    type="number" 
+                                    min="0"
+                                    :disabled="match.termine"
+                                    class="w-20 px-3 py-2 bg-gray-600 text-white text-center rounded-xl border border-gray-500 focus:outline-none disabled:opacity-50"
+                                >
+                                <div class="flex-1 text-white font-semibold text-lg text-right">
+                                    {{ match.joueur2 }}
+                                </div>
+                                <button 
+                                    v-if="!match.termine"
+                                    @click="enregistrerResultat(mancheActive, match.id)"
+                                    class="px-6 py-2 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition"
+                                >
+                                    ✓
+                                </button>
+                                <button 
+                                    v-else
+                                    @click="modifierResultat(mancheActive, match.id)"
+                                    class="px-6 py-2 bg-yellow-600 text-white font-semibold rounded-xl hover:bg-yellow-700 transition"
+                                >
+                                    ✏️
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bouton voir les résultats -->
+                <button 
+                    @click="etape = 'resultats'"
+                    class="w-full mt-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xl font-bold rounded-xl hover:shadow-2xl transform hover:scale-105 transition"
+                >
+                    🏆 Voir les Résultats Finaux
+                </button>
+            </div>
+
+            <!-- Résultats -->
+            <div v-if="etape === 'resultats'" class="max-w-6xl mx-auto">
+                <div class="bg-gray-800 rounded-3xl p-8 border border-gray-700">
+                    <h2 class="text-4xl font-black text-center text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 mb-8">
+                        🏆 CLASSEMENT FINAL 🏆
+                    </h2>
+
+                    <div class="space-y-4">
+                        <div 
+                            v-for="(joueur, index) in classement" 
+                            :key="joueur.nom"
+                            :class="getCardClass(index)"
+                            class="rounded-2xl p-6 border-4 transform transition hover:scale-105"
+                        >
+                            <div class="flex items-center gap-6">
+                                <div class="text-5xl font-black">
+                                    {{ getTitre(index) }}
+                                </div>
+                                <div class="flex-1">
+                                    <h3 class="text-2xl font-bold mb-2">
+                                        {{ joueur.nom }}
+                                        <span class="text-lg ml-2">{{ getRang(index) }}</span>
+                                    </h3>
+                                    <div class="flex gap-4 text-sm font-semibold">
+                                        <span>🐉 DBZ: {{ joueur.points.dbz }} pts</span>
+                                        <span>⚽ FC25: {{ joueur.points.fc25 }} pts</span>
+                                        <span class="font-bold">📊 TOTAL: {{ joueur.points.total }} pts</span>
+                                    </div>
+                                </div>
+                                <div class="text-4xl font-black">
+                                    #{{ index + 1 }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-8 flex gap-4">
+                        <button 
+                            @click="etape = 'tournoi'"
+                            class="flex-1 py-4 bg-gray-700 text-white font-bold rounded-xl hover:bg-gray-600 transition"
+                        >
+                            ← Retour au Tournoi
+                        </button>
+                        <button 
+                            @click="reinitialiser"
+                            class="flex-1 py-4 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition"
+                        >
+                            🔄 Nouveau Tournoi
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    etape: 'config',
+                    participants: [],
+                    nomTemp: '',
+                    matchsDBZ: 1,
+                    matchsFC25: 1,
+                    matchsDBZTemp: 1,
+                    matchsFC25Temp: 1,
+                    matchsJoues: { dbz: [], fc25: [] },
+                    mancheActive: 'dbz',
+                    modalResetVisible: false
+                };
+            },
+            mounted() {
+                this.chargerDonnees();
+            },
+            computed: {
+                classement() {
+                    return this.participants
+                        .map(nom => ({
+                            nom,
+                            points: this.calculerPoints(nom)
+                        }))
+                        .sort((a, b) => b.points.total - a.points.total);
+                }
+            },
+            methods: {
+                ouvrirModalReset() {
+                    this.modalResetVisible = true;
+                },
+                fermerModalReset() {
+                    this.modalResetVisible = false;
+                },
+                confirmerReset() {
+                    localStorage.removeItem('tournoiGaming');
+                    this.etape = 'config';
+                    this.participants = [];
+                    this.nomTemp = '';
+                    this.matchsDBZ = 1;
+                    this.matchsFC25 = 1;
+                    this.matchsDBZTemp = 1;
+                    this.matchsFC25Temp = 1;
+                    this.matchsJoues = { dbz: [], fc25: [] };
+                    this.mancheActive = 'dbz';
+                    this.modalResetVisible = false;
+                },
+                sauvegarderDonnees() {
+                    const donnees = {
+                        etape: this.etape,
+                        participants: this.participants,
+                        matchsDBZ: this.matchsDBZ,
+                        matchsFC25: this.matchsFC25,
+                        matchsDBZTemp: this.matchsDBZTemp,
+                        matchsFC25Temp: this.matchsFC25Temp,
+                        matchsJoues: this.matchsJoues,
+                        mancheActive: this.mancheActive
+                    };
+                    localStorage.setItem('tournoiGaming', JSON.stringify(donnees));
+                },
+                chargerDonnees() {
+                    try {
+                        const donnees = localStorage.getItem('tournoiGaming');
+                        if (donnees) {
+                            const parsed = JSON.parse(donnees);
+                            this.etape = parsed.etape || 'config';
+                            this.participants = parsed.participants || [];
+                            this.matchsDBZ = parsed.matchsDBZ || 1;
+                            this.matchsFC25 = parsed.matchsFC25 || 1;
+                            this.matchsDBZTemp = parsed.matchsDBZTemp || parsed.matchsDBZ || 1;
+                            this.matchsFC25Temp = parsed.matchsFC25Temp || parsed.matchsFC25 || 1;
+                            this.matchsJoues = parsed.matchsJoues || { dbz: [], fc25: [] };
+                            this.mancheActive = parsed.mancheActive || 'dbz';
+                        }
+                    } catch (e) {
+                        console.error('Erreur lors du chargement des données:', e);
+                        localStorage.removeItem('tournoiGaming');
+                    }
+                },
+                ajouterParticipant() {
+                    if (this.nomTemp.trim() && !this.participants.includes(this.nomTemp.trim())) {
+                        this.participants.push(this.nomTemp.trim());
+                        this.nomTemp = '';
+                        this.sauvegarderDonnees();
+                    }
+                },
+                retirerParticipant(nom) {
+                    this.participants = this.participants.filter(p => p !== nom);
+                    this.sauvegarderDonnees();
+                },
+                genererMatchs(nbAllerRetour) {
+                    const matchs = [];
+                    for (let i = 0; i < this.participants.length; i++) {
+                        for (let j = i + 1; j < this.participants.length; j++) {
+                            for (let k = 0; k < nbAllerRetour; k++) {
+                                matchs.push({
+                                    id: `${i}-${j}-${k}-${Date.now()}-${Math.random()}`,
+                                    joueur1: this.participants[i],
+                                    joueur2: this.participants[j],
+                                    score1: 0,
+                                    score2: 0,
+                                    gagnant: null,
+                                    termine: false
+                                });
+                            }
+                        }
+                    }
+                    // Mélanger les matchs aléatoirement
+                    return matchs.sort(() => Math.random() - 0.5);
+                },
+                demarrerTournoi() {
+                    if (this.participants.length < 2) {
+                        alert('Il faut au moins 2 participants !');
+                        return;
+                    }
+                    this.matchsJoues = {
+                        dbz: this.genererMatchs(this.matchsDBZ),
+                        fc25: this.genererMatchs(this.matchsFC25)
+                    };
+                    this.matchsDBZTemp = this.matchsDBZ;
+                    this.matchsFC25Temp = this.matchsFC25;
+                    this.etape = 'tournoi';
+                    this.sauvegarderDonnees();
+                },
+                ajouterConfrontations() {
+                    if (this.matchsDBZTemp > this.matchsDBZ) {
+                        const diff = this.matchsDBZTemp - this.matchsDBZ;
+                        const nouveauxMatchs = this.genererMatchs(diff);
+                        this.matchsJoues.dbz.push(...nouveauxMatchs);
+                        this.matchsDBZ = this.matchsDBZTemp;
+                    }
+                    if (this.matchsFC25Temp > this.matchsFC25) {
+                        const diff = this.matchsFC25Temp - this.matchsFC25;
+                        const nouveauxMatchs = this.genererMatchs(diff);
+                        this.matchsJoues.fc25.push(...nouveauxMatchs);
+                        this.matchsFC25 = this.matchsFC25Temp;
+                    }
+                    this.sauvegarderDonnees();
+                },
+                selectionnerGagnantDBZ(matchId, gagnant) {
+                    const match = this.matchsJoues.dbz.find(m => m.id === matchId);
+                    if (match && !match.termine) {
+                        match.gagnant = gagnant;
+                        this.sauvegarderDonnees();
+                    }
+                },
+                validerMatchDBZ(matchId) {
+                    const match = this.matchsJoues.dbz.find(m => m.id === matchId);
+                    if (match && match.gagnant) {
+                        match.termine = true;
+                        this.sauvegarderDonnees();
+                    }
+                },
+                enregistrerResultat(manche, matchId) {
+                    const match = this.matchsJoues[manche].find(m => m.id === matchId);
+                    if (match && match.score1 !== null && match.score2 !== null) {
+                        match.termine = true;
+                        this.sauvegarderDonnees();
+                    }
+                },
+                modifierResultat(manche, matchId) {
+                    const match = this.matchsJoues[manche].find(m => m.id === matchId);
+                    if (match) {
+                        match.termine = false;
+                        if (manche === 'dbz') {
+                            match.gagnant = null;
+                        }
+                        this.sauvegarderDonnees();
+                    }
+                },
+                calculerPoints(joueur) {
+                    const points = { dbz: 0, fc25: 0, total: 0 };
+
+                    // Points DBZ - basé sur le gagnant
+                    this.matchsJoues.dbz.forEach(match => {
+                        if (!match.termine) return;
+
+                        if (match.gagnant === 'nul') {
+                            if (match.joueur1 === joueur || match.joueur2 === joueur) {
+                                points.dbz += 1;
+                            }
+                        } else if (match.gagnant === joueur) {
+                            points.dbz += 3;
+                        }
+                    });
+
+                    // Points FC25 - basé sur les scores
+                    this.matchsJoues.fc25.forEach(match => {
+                        if (!match.termine) return;
+
+                        if (match.joueur1 === joueur) {
+                            if (match.score1 > match.score2) points.fc25 += 3;
+                            else if (match.score1 === match.score2) points.fc25 += 1;
+                        } else if (match.joueur2 === joueur) {
+                            if (match.score2 > match.score1) points.fc25 += 3;
+                            else if (match.score1 === match.score2) points.fc25 += 1;
+                        }
+                    });
+
+                    points.total = points.dbz + points.fc25;
+                    return points;
+                },
+                matchsTermines(manche) {
+                    return this.matchsJoues[manche].filter(m => m.termine).length;
+                },
+                getTitre(index) {
+                    if (index === 0) return '👑';
+                    if (index === 1) return '🥈';
+                    if (index === this.classement.length - 1) return '💩';
+                    return '📊';
+                },
+                getRang(index) {
+                    if (index === 0) return 'Le Champion';
+                    if (index === 1) return 'Le Dauphin';
+                    if (index === this.classement.length - 1) return 'La PDB';
+                    return 'Ventre Mou';
+                },
+                getCardClass(index) {
+                    if (index === 0) return 'champion-card border-yellow-500 text-gray-900';
+                    if (index === 1) return 'dauphin-card border-gray-400 text-gray-900';
+                    if (index === this.classement.length - 1) return 'pdb-card border-yellow-700 text-white';
+                    return 'ventre-card border-gray-600 text-white';
+                },
+                reinitialiser() {
+                    this.etape = 'config';
+                    this.participants = [];
+                    this.nomTemp = '';
+                    this.matchsDBZ = 1;
+                    this.matchsFC25 = 1;
+                    this.matchsJoues = { dbz: [], fc25: [] };
+                    this.mancheActive = 'dbz';
+                    this.sauvegarderDonnees();
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
